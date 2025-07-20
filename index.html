@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude Code セッション管理</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 5px;
+            background-color: #f5f5f5;
+            font-size: 11px;
+            display: flex;
+            gap: 10px;
+        }
+        .container {
+            background: white;
+            border-radius: 4px;
+            padding: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            flex: 1;
+            max-width: 400px;
+        }
+        .vertical-progress-container {
+            display: flex;
+            gap: 5px;
+        }
+        .vertical-progress {
+            width: 15px;
+            height: 300px;
+            background: #e0e0e0;
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+        .vertical-progress-fill {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            transition: height 0.3s ease;
+            border-radius: 8px;
+        }
+        .vertical-progress-fill-1 {
+            background: #4CAF50;
+        }
+        .vertical-progress-fill-2 {
+            background: #FFC107;
+        }
+        .vertical-progress-fill-3 {
+            background: #f44336;
+        }
+        h1 {
+            color: #333;
+            margin: 5px 0 10px 0;
+            font-size: 16px;
+        }
+        h3 {
+            font-size: 12px;
+            margin: 5px 0;
+        }
+        .session-info {
+            background: #f0f7ff;
+            border-radius: 3px;
+            padding: 5px;
+            margin-bottom: 8px;
+            font-size: 10px;
+        }
+        .session-info p {
+            margin: 2px 0;
+            display: inline-block;
+            margin-right: 10px;
+        }
+        .current-session {
+            background: #e8f5e9;
+            border-radius: 3px;
+            padding: 5px;
+            margin-bottom: 8px;
+            display: none;
+            font-size: 10px;
+        }
+        .current-session p {
+            margin: 2px 0;
+            display: inline-block;
+            margin-right: 10px;
+        }
+        .progress-container {
+            width: 100%;
+            margin: 5px 0;
+        }
+        .progress-container-top {
+            width: 100%;
+            margin: 0 0 10px 0;
+        }
+        .progress-bar-group {
+            display: flex;
+            gap: 2px;
+            margin-bottom: 2px;
+        }
+        .progress-bar {
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+        .progress-fill {
+            height: 100%;
+            transition: width 0.3s ease;
+            border-radius: 4px;
+        }
+        .progress-fill-session1 {
+            background: #4CAF50;
+        }
+        .progress-fill-session2 {
+            background: #FFC107;
+        }
+        .progress-fill-session3 {
+            background: #f44336;
+        }
+        .progress-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 8px;
+            color: #666;
+        }
+        .time-input-container {
+            margin: 5px 0;
+            padding: 5px;
+            background: #f0f7ff;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .time-input-container h4 {
+            font-size: 10px;
+            margin: 0;
+        }
+        .time-input {
+            padding: 4px;
+            font-size: 12px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            margin: 0 3px;
+        }
+        .remaining-time {
+            font-size: 14px;
+            font-weight: bold;
+            text-align: center;
+            margin: 5px 0;
+        }
+        .time-good {
+            color: #4CAF50;
+        }
+        .time-warning {
+            color: #FFC107;
+        }
+        .time-danger {
+            color: #f44336;
+        }
+        .time-display {
+            font-size: 14px;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+        .warning {
+            color: #ff6b6b;
+            font-weight: bold;
+        }
+        .recommended {
+            color: #ff9800;
+            font-weight: bold;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            font-size: 10px;
+            border-radius: 2px;
+            cursor: pointer;
+            margin-right: 3px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        #stopBtn {
+            background: #f44336;
+        }
+        #stopBtn:hover {
+            background: #da190b;
+        }
+        .history {
+            margin-top: 8px;
+        }
+        .history-item {
+            border-bottom: 1px solid #eee;
+            padding: 2px 0;
+            font-size: 9px;
+        }
+        .day-header {
+            background: #f5f5f5;
+            padding: 3px 5px;
+            margin: 5px 0 2px 0;
+            font-weight: bold;
+            font-size: 10px;
+            border-radius: 3px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .day-status-good {
+            color: #4CAF50;
+        }
+        .day-status-warning {
+            color: #FFC107;
+        }
+        .day-status-danger {
+            color: #f44336;
+        }
+        .stats {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 5px;
+        }
+        .stat-box {
+            flex: 1;
+            background: #f8f9fa;
+            padding: 5px;
+            border-radius: 3px;
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 16px;
+            font-weight: bold;
+            color: #2196F3;
+        }
+        .stat-label {
+            color: #666;
+            font-size: 9px;
+        }
+    </style>
+</head>
+<body>
+    <div class="vertical-progress-container" id="verticalProgressContainer" style="display: none;">
+        <div class="vertical-progress">
+            <div class="vertical-progress-fill vertical-progress-fill-1" id="verticalProgressFill1" style="height: 0%"></div>
+        </div>
+        <div class="vertical-progress">
+            <div class="vertical-progress-fill vertical-progress-fill-2" id="verticalProgressFill2" style="height: 0%"></div>
+        </div>
+        <div class="vertical-progress">
+            <div class="vertical-progress-fill vertical-progress-fill-3" id="verticalProgressFill3" style="height: 0%"></div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h1>Claude セッション管理</h1>
+        
+        <div class="session-info">
+            <p>1セッション:5時間</p>
+            <p>月間:50回</p>
+            <p>推奨:5分前終了</p>
+        </div>
+
+        <div class="stats">
+            <div class="stat-box">
+                <div class="stat-number" id="todayCount">0</div>
+                <div class="stat-label">今日のセッション</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number" id="monthlyCount">0</div>
+                <div class="stat-label">今月の使用回数</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number" id="remainingCount">50</div>
+                <div class="stat-label">残り使用可能回数</div>
+            </div>
+        </div>
+
+        <div class="current-session" id="currentSession">
+            <p>開始: <span id="startTime"></span></p>
+            <p>経過: <span id="elapsedTime" class="time-display">00:00:00</span></p>
+            <p>推奨終了: <span id="recommendedEnd" class="recommended"></span></p>
+            <p>終了: <span id="sessionEnd" class="warning"></span></p>
+            
+            <div class="remaining-time" id="remainingTime"></div>
+            
+            <div id="warningMessage" style="display: none; margin-top: 5px;" class="warning">
+                ⚠️ 終了推奨時刻が近づいています！
+            </div>
+        </div>
+
+        <div class="time-input-container">
+            <h4>手動設定:</h4>
+            <input type="time" id="manualStartTime" class="time-input">
+            <button onclick="startSessionWithTime()">指定時刻で開始</button>
+        </div>
+        
+        <div>
+            <button id="startBtn" onclick="startSession()">開始</button>
+            <button id="stopBtn" onclick="stopSession()" disabled>終了</button>
+            <input type="time" id="manualEndTime" class="time-input" style="display: none;">
+            <button id="stopWithTimeBtn" onclick="stopSessionWithTime()" style="display: none;">指定時刻で終了</button>
+        </div>
+
+        <div class="time-input-container">
+            <h4>段階アラーム:</h4>
+            <button onclick="setMultipleAlarms()">19:25〜21:00設定</button>
+            <button onclick="cancelAllAlarms()" style="background: #f44336;">全て停止</button>
+        </div>
+
+        <div class="history">
+            <h3>セッション履歴</h3>
+            <button onclick="exportToCSV()" style="background: #2196F3;">CSV出力</button>
+            <div id="historyList"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentSession = null;
+        let intervalId = null;
+        let alarmTimeouts = [];
+
+        // ローカルストレージからデータを読み込む
+        function loadSessions() {
+            const sessions = localStorage.getItem('claudeSessions');
+            return sessions ? JSON.parse(sessions) : [];
+        }
+
+        // セッションを保存
+        function saveSessions(sessions) {
+            localStorage.setItem('claudeSessions', JSON.stringify(sessions));
+        }
+
+        // セッションにメモを追加
+        function addSessionMemo(session) {
+            if (!session.memo) {
+                session.memo = '';
+            }
+            return session;
+        }
+
+        // 現在のセッションを保存
+        function saveCurrentSession() {
+            if (currentSession) {
+                localStorage.setItem('claudeCurrentSession', JSON.stringify(currentSession));
+            } else {
+                localStorage.removeItem('claudeCurrentSession');
+            }
+        }
+
+        // 現在のセッションを読み込む
+        function loadCurrentSession() {
+            const saved = localStorage.getItem('claudeCurrentSession');
+            return saved ? JSON.parse(saved) : null;
+        }
+
+        // セッション開始
+        function startSession() {
+            const now = new Date();
+            currentSession = {
+                startTime: now.toISOString(),
+                endTime: null,
+                duration: null,
+                memo: ''
+            };
+
+            // UI更新
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            document.getElementById('currentSession').style.display = 'block';
+            document.getElementById('manualEndTime').style.display = 'inline';
+            document.getElementById('stopWithTimeBtn').style.display = 'inline';
+            document.getElementById('verticalProgressContainer').style.display = 'flex';
+            
+            // 時刻表示
+            document.getElementById('startTime').textContent = formatTime(now);
+            
+            // 終了推奨時刻（4時間55分後）
+            const recommendedEnd = new Date(now.getTime() + (4 * 60 + 55) * 60 * 1000);
+            document.getElementById('recommendedEnd').textContent = formatTime(recommendedEnd);
+            
+            // セッション終了時刻（5時間後）
+            const sessionEnd = new Date(now.getTime() + 5 * 60 * 60 * 1000);
+            document.getElementById('sessionEnd').textContent = formatTime(sessionEnd);
+
+            // 経過時間の更新を開始
+            updateElapsedTime();
+            intervalId = setInterval(updateElapsedTime, 1000);
+            
+            // 現在のセッションを保存
+            saveCurrentSession();
+            
+            // 統計情報を更新
+            updateStats();
+        }
+
+        // セッション終了
+        function stopSession() {
+            if (!currentSession) return;
+
+            const endTime = new Date();
+            currentSession.endTime = endTime.toISOString();
+            currentSession.duration = endTime - new Date(currentSession.startTime);
+
+            // セッションを保存
+            const sessions = loadSessions();
+            sessions.push(currentSession);
+            saveSessions(sessions);
+
+            // タイマー停止
+            if (intervalId) {
+                clearInterval(intervalId);
+                intervalId = null;
+            }
+
+            // UI更新
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            document.getElementById('currentSession').style.display = 'none';
+            document.getElementById('warningMessage').style.display = 'none';
+            document.getElementById('manualEndTime').style.display = 'none';
+            document.getElementById('stopWithTimeBtn').style.display = 'none';
+            document.getElementById('verticalProgressContainer').style.display = 'none';
+
+            currentSession = null;
+            saveCurrentSession(); // セッションをクリア
+            updateHistory();
+            updateStats();
+        }
+
+        // 指定時刻でセッション開始
+        function startSessionWithTime() {
+            const timeInput = document.getElementById('manualStartTime').value;
+            if (!timeInput) {
+                alert('開始時刻を入力してください');
+                return;
+            }
+
+            const now = new Date();
+            const [hours, minutes] = timeInput.split(':').map(Number);
+            const startTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes, 0);
+            
+            // 未来の時刻が入力された場合は警告
+            if (startTime > now) {
+                alert('未来の時刻は指定できません');
+                return;
+            }
+
+            currentSession = {
+                startTime: startTime.toISOString(),
+                endTime: null,
+                duration: null,
+                memo: ''
+            };
+
+            // UI更新
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            document.getElementById('currentSession').style.display = 'block';
+            document.getElementById('manualEndTime').style.display = 'inline';
+            document.getElementById('stopWithTimeBtn').style.display = 'inline';
+            document.getElementById('verticalProgressContainer').style.display = 'flex';
+            
+            // 時刻表示
+            document.getElementById('startTime').textContent = formatTime(startTime);
+            
+            // 終了推奨時刻（4時間55分後）
+            const recommendedEnd = new Date(startTime.getTime() + (4 * 60 + 55) * 60 * 1000);
+            document.getElementById('recommendedEnd').textContent = formatTime(recommendedEnd);
+            
+            // セッション終了時刻（5時間後）
+            const sessionEnd = new Date(startTime.getTime() + 5 * 60 * 60 * 1000);
+            document.getElementById('sessionEnd').textContent = formatTime(sessionEnd);
+
+            // 経過時間の更新を開始
+            updateElapsedTime();
+            intervalId = setInterval(updateElapsedTime, 1000);
+            
+            // 現在のセッションを保存
+            saveCurrentSession();
+            
+            // 統計情報を更新
+            updateStats();
+        }
+
+        // 経過時間を更新
+        function updateElapsedTime() {
+            if (!currentSession) return;
+
+            const now = new Date();
+            const start = new Date(currentSession.startTime);
+            const elapsed = now - start;
+
+            // 経過時間表示
+            const hours = Math.floor(elapsed / (1000 * 60 * 60));
+            const minutes = Math.floor((elapsed % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((elapsed % (1000 * 60)) / 1000);
+            
+            document.getElementById('elapsedTime').textContent = 
+                `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+
+            // 推奨終了時刻を動的に更新
+            updateRecommendedEndTime(elapsed);
+
+            // 統計情報を更新（現在のセッションも含む）
+            updateStats();
+
+            // 残り時間の計算（5時間まで）
+            const totalSessionTime = 5 * 60 * 60 * 1000; // 5時間
+            const remaining = totalSessionTime - elapsed;
+            
+            if (remaining > 0) {
+                const remainHours = Math.floor(remaining / (1000 * 60 * 60));
+                const remainMinutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+                const remainSeconds = Math.floor((remaining % (1000 * 60)) / 1000);
+                
+                const remainingTimeEl = document.getElementById('remainingTime');
+                remainingTimeEl.textContent = `残り: ${String(remainHours).padStart(2, '0')}:${String(remainMinutes).padStart(2, '0')}:${String(remainSeconds).padStart(2, '0')}`;
+                
+                // 残り時間に応じて色を変更
+                if (remaining > 30 * 60 * 1000) { // 30分以上
+                    remainingTimeEl.className = 'remaining-time time-good';
+                } else if (remaining > 10 * 60 * 1000) { // 10-30分
+                    remainingTimeEl.className = 'remaining-time time-warning';
+                } else { // 10分以下
+                    remainingTimeEl.className = 'remaining-time time-danger';
+                }
+                
+                // プログレスバーの更新（3本ゲージ）
+                updateProgressBars(elapsed);
+            } else {
+                // 1セッション完了後の表示
+                const sessionTime = 5 * 60 * 60 * 1000; // 5時間
+                
+                if (elapsed < 2 * sessionTime) {
+                    // 1セッション完了、2セッション目進行中
+                    document.getElementById('remainingTime').textContent = '✅ 1セッション完了';
+                    document.getElementById('remainingTime').className = 'remaining-time time-warning';
+                } else {
+                    // 2セッション完了以降は超過時間を表示
+                    const overTime = elapsed - totalSessionTime;
+                    const overHours = Math.floor(overTime / (1000 * 60 * 60));
+                    const overMinutes = Math.floor((overTime % (1000 * 60 * 60)) / (1000 * 60));
+                    const overSeconds = Math.floor((overTime % (1000 * 60)) / 1000);
+                    
+                    document.getElementById('remainingTime').textContent = 
+                        `⏰ 超過: ${String(overHours).padStart(2, '0')}:${String(overMinutes).padStart(2, '0')}:${String(overSeconds).padStart(2, '0')}`;
+                    document.getElementById('remainingTime').className = 'remaining-time time-danger';
+                }
+                
+                // プログレスバーの更新（3本ゲージ）
+                updateProgressBars(elapsed);
+            }
+
+            // 警告表示（4時間50分以降）
+            if (elapsed >= (4 * 60 + 50) * 60 * 1000) {
+                document.getElementById('warningMessage').style.display = 'block';
+            }
+        }
+
+        // 履歴を更新
+        function updateHistory() {
+            const sessions = loadSessions();
+            const historyList = document.getElementById('historyList');
+            historyList.innerHTML = '';
+
+            // 日ごとにセッションをグループ化
+            const sessionsByDay = {};
+            sessions.forEach((session, index) => {
+                const date = new Date(session.startTime).toLocaleDateString('ja-JP');
+                if (!sessionsByDay[date]) {
+                    sessionsByDay[date] = [];
+                }
+                sessionsByDay[date].push({ session, index });
+            });
+
+            // 最新の日付から表示（最大10日分）
+            const sortedDays = Object.keys(sessionsByDay).sort().reverse().slice(0, 10);
+
+            sortedDays.forEach(date => {
+                const daySessions = sessionsByDay[date];
+                const sessionCount = daySessions.length;
+
+                // 日付ヘッダーと評価を追加
+                const dayHeader = document.createElement('div');
+                dayHeader.className = 'day-header';
+                
+                let statusText = '';
+                let statusClass = '';
+                if (sessionCount <= 2) {
+                    statusText = '✅ Good';
+                    statusClass = 'day-status-good';
+                } else if (sessionCount === 3) {
+                    statusText = '⚠️ 注意';
+                    statusClass = 'day-status-warning';
+                } else {
+                    statusText = '🚨 Danger';
+                    statusClass = 'day-status-danger';
+                }
+
+                dayHeader.innerHTML = `
+                    <span>${date} (${sessionCount}セッション)</span>
+                    <span class="${statusClass}">${statusText}</span>
+                `;
+                historyList.appendChild(dayHeader);
+
+                // その日のセッションを表示
+                daySessions.reverse().forEach(({ session, index }) => {
+                    const item = document.createElement('div');
+                    item.className = 'history-item';
+                    const duration = session.duration / 1000 / 60; // 分単位
+                    const memoDisplay = session.memo ? ` ${session.memo}` : '';
+                    item.innerHTML = `
+                        ${formatTime(new Date(session.startTime))} ～ ${formatTime(new Date(session.endTime))}
+                        (${Math.floor(duration)}分)${memoDisplay}
+                        <button onclick="editSessionTime(${index})" style="font-size: 9px; padding: 2px 5px;">時刻</button>
+                        <button onclick="editSessionMemo(${index})" style="font-size: 9px; padding: 2px 5px;">メモ</button>
+                    `;
+                    historyList.appendChild(item);
+                });
+            });
+        }
+
+        // 統計情報を更新
+        function updateStats() {
+            const sessions = loadSessions();
+            const now = new Date();
+            const currentMonth = now.getMonth();
+            const currentYear = now.getFullYear();
+            const todayStr = now.toLocaleDateString('ja-JP');
+
+            // 今日のセッション数を計算（現在のセッションも含む）
+            let todaySessions = sessions.filter(session => {
+                const sessionDate = new Date(session.startTime);
+                return sessionDate.toLocaleDateString('ja-JP') === todayStr;
+            });
+            
+            let todayCount = todaySessions.length;
+            
+            // 現在のセッションがある場合は経過時間に基づいてカウント
+            if (currentSession) {
+                const currentSessionDate = new Date(currentSession.startTime);
+                if (currentSessionDate.toLocaleDateString('ja-JP') === todayStr) {
+                    const now = new Date();
+                    const elapsed = now - currentSessionDate;
+                    const sessionTime = 5 * 60 * 60 * 1000; // 5時間
+                    const currentSessionCount = Math.floor(elapsed / sessionTime) + 1;
+                    todayCount += currentSessionCount;
+                }
+            }
+
+            // 今月のセッション数を計算（現在のセッションも含む）
+            const monthSessions = sessions.filter(session => {
+                const sessionDate = new Date(session.startTime);
+                return sessionDate.getMonth() === currentMonth && 
+                       sessionDate.getFullYear() === currentYear;
+            });
+            
+            let monthCount = monthSessions.length;
+            if (currentSession) {
+                const currentSessionDate = new Date(currentSession.startTime);
+                if (currentSessionDate.getMonth() === currentMonth && 
+                    currentSessionDate.getFullYear() === currentYear) {
+                    const now = new Date();
+                    const elapsed = now - currentSessionDate;
+                    const sessionTime = 5 * 60 * 60 * 1000; // 5時間
+                    const currentSessionCount = Math.floor(elapsed / sessionTime) + 1;
+                    monthCount += currentSessionCount;
+                }
+            }
+
+            // 表示を更新
+            const todayElement = document.getElementById('todayCount');
+            todayElement.textContent = todayCount;
+            
+            // 今日のセッション数に応じて色を変更
+            if (todayCount <= 2) {
+                todayElement.className = 'stat-number day-status-good';
+            } else if (todayCount === 3) {
+                todayElement.className = 'stat-number day-status-warning';
+            } else {
+                todayElement.className = 'stat-number day-status-danger';
+            }
+
+            document.getElementById('monthlyCount').textContent = monthCount;
+            document.getElementById('remainingCount').textContent = 50 - monthCount;
+        }
+
+        // 時刻フォーマット
+        function formatTime(date) {
+            return date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        // 日付フォーマット
+        function formatDate(date) {
+            return date.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' });
+        }
+
+        // CSV出力機能
+        function exportToCSV() {
+            const sessions = loadSessions();
+            
+            // CSVヘッダー
+            let csv = '開始日,開始時刻,終了時刻,経過時間（分）\n';
+            
+            sessions.forEach(session => {
+                const start = new Date(session.startTime);
+                const end = new Date(session.endTime);
+                const duration = Math.floor(session.duration / 1000 / 60);
+                
+                csv += `${formatFullDate(start)},${formatTime(start)},${formatTime(end)},${duration}\n`;
+            });
+            
+            // BOMを追加（Excel対応）
+            const bom = '\uFEFF';
+            const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            
+            if (navigator.msSaveBlob) {
+                navigator.msSaveBlob(blob, 'claude_sessions.csv');
+            } else {
+                link.href = URL.createObjectURL(blob);
+                link.download = `claude_sessions_${formatFullDate(new Date())}.csv`;
+                link.click();
+            }
+        }
+        
+        // 完全な日付フォーマット
+        function formatFullDate(date) {
+            return date.toLocaleDateString('ja-JP', { 
+                year: 'numeric', 
+                month: '2-digit', 
+                day: '2-digit' 
+            }).replace(/\//g, '-');
+        }
+
+        // 推奨終了時刻を動的に更新
+        function updateRecommendedEndTime(elapsed) {
+            const start = new Date(currentSession.startTime);
+            const sessionTime = 5 * 60 * 60 * 1000; // 5時間
+            
+            // 現在のセッション数を計算
+            const currentSessionNumber = Math.floor(elapsed / sessionTime) + 1;
+            
+            // 現在のセッションの開始時刻を計算
+            const currentSessionStart = new Date(start.getTime() + (currentSessionNumber - 1) * sessionTime);
+            
+            // 推奨終了時刻（現在のセッションの4時間55分後）
+            const recommendedEnd = new Date(currentSessionStart.getTime() + (4 * 60 + 55) * 60 * 1000);
+            
+            // セッション終了時刻（現在のセッションの5時間後）
+            const sessionEnd = new Date(currentSessionStart.getTime() + sessionTime);
+            
+            document.getElementById('recommendedEnd').textContent = formatTime(recommendedEnd);
+            document.getElementById('sessionEnd').textContent = formatTime(sessionEnd);
+        }
+
+        // プログレスバーを更新（縦ゲージのみ）
+        function updateProgressBars(elapsed) {
+            const sessionTime = 5 * 60 * 60 * 1000; // 5時間
+            
+            // 各ゲージの進捗を計算
+            const progress1 = Math.min((elapsed / sessionTime) * 100, 100);
+            const progress2 = Math.max(0, Math.min(((elapsed - sessionTime) / sessionTime) * 100, 100));
+            const progress3 = Math.max(0, Math.min(((elapsed - 2 * sessionTime) / sessionTime) * 100, 100));
+            
+            // 縦ゲージを更新（各5時間）
+            document.getElementById('verticalProgressFill1').style.height = `${progress1}%`;
+            document.getElementById('verticalProgressFill2').style.height = `${progress2}%`;
+            document.getElementById('verticalProgressFill3').style.height = `${progress3}%`;
+        }
+
+        // セッションの時刻を編集
+        function editSessionTime(index) {
+            const sessions = loadSessions();
+            const session = sessions[index];
+            
+            const newEndTime = prompt('新しい終了時刻を入力してください (HH:MM)', 
+                formatTime(new Date(session.endTime)));
+            
+            if (!newEndTime) return;
+            
+            const [hours, minutes] = newEndTime.split(':').map(Number);
+            const startDate = new Date(session.startTime);
+            const endDate = new Date(
+                startDate.getFullYear(), 
+                startDate.getMonth(), 
+                startDate.getDate(), 
+                hours, 
+                minutes, 
+                0
+            );
+            
+            // 日付を跨いだ場合の処理
+            if (endDate <= startDate) {
+                endDate.setDate(endDate.getDate() + 1);
+            }
+            
+            session.endTime = endDate.toISOString();
+            session.duration = endDate - startDate;
+            
+            sessions[index] = session;
+            saveSessions(sessions);
+            
+            updateHistory();
+            updateStats();
+        }
+
+        // セッションのメモを編集
+        function editSessionMemo(index) {
+            const sessions = loadSessions();
+            const session = sessions[index];
+            
+            const newMemo = prompt('メモを入力してください', session.memo || '');
+            
+            if (newMemo === null) return; // キャンセル
+            
+            session.memo = newMemo;
+            sessions[index] = session;
+            saveSessions(sessions);
+            
+            updateHistory();
+        }
+
+        // 指定時刻でセッション終了
+        function stopSessionWithTime() {
+            if (!currentSession) return;
+            
+            const timeInput = document.getElementById('manualEndTime').value;
+            if (!timeInput) {
+                alert('終了時刻を入力してください');
+                return;
+            }
+
+            const now = new Date();
+            const [hours, minutes] = timeInput.split(':').map(Number);
+            const endTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes, 0);
+            
+            // 開始時刻より前の時刻が入力された場合は警告
+            const startTime = new Date(currentSession.startTime);
+            if (endTime <= startTime) {
+                alert('終了時刻は開始時刻より後にしてください');
+                return;
+            }
+            
+            // 未来の時刻が入力された場合は警告
+            if (endTime > now) {
+                alert('未来の時刻は指定できません');
+                return;
+            }
+
+            currentSession.endTime = endTime.toISOString();
+            currentSession.duration = endTime - startTime;
+
+            // セッションを保存
+            const sessions = loadSessions();
+            sessions.push(currentSession);
+            saveSessions(sessions);
+
+            // タイマー停止
+            if (intervalId) {
+                clearInterval(intervalId);
+                intervalId = null;
+            }
+
+            // UI更新
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            document.getElementById('currentSession').style.display = 'none';
+            document.getElementById('warningMessage').style.display = 'none';
+            document.getElementById('manualEndTime').style.display = 'none';
+            document.getElementById('stopWithTimeBtn').style.display = 'none';
+            document.getElementById('verticalProgressContainer').style.display = 'none';
+            document.getElementById('manualEndTime').value = '';
+
+            currentSession = null;
+            saveCurrentSession();
+            updateHistory();
+            updateStats();
+        }
+
+        // 複数アラームを設定
+        function setMultipleAlarms() {
+            // 既存のアラームをクリア
+            cancelAllAlarms();
+            
+            const now = new Date();
+            const alarmTimes = [
+                { time: '19:25', beeps: 1 },
+                { time: '19:30', beeps: 2 },
+                { time: '19:35', beeps: 3 },
+                { time: '19:40', beeps: 4 },
+                { time: '19:45', beeps: 5 },
+                { time: '19:50', beeps: 6 },
+                { time: '19:55', beeps: 7 },
+                { time: '20:00', beeps: 8 },
+                { time: '20:05', beeps: 9 },
+                { time: '20:10', beeps: 10 },
+                { time: '20:15', beeps: 11 },
+                { time: '20:20', beeps: 12 },
+                { time: '20:25', beeps: 13 },
+                { time: '20:30', beeps: 14 },
+                { time: '20:35', beeps: 15 },
+                { time: '20:40', beeps: 16 },
+                { time: '20:45', beeps: 17 },
+                { time: '20:50', beeps: 18 },
+                { time: '20:55', beeps: 19 },
+                { time: '21:00', beeps: 20 }
+            ];
+            
+            alarmTimes.forEach(({ time, beeps }) => {
+                const [hours, minutes] = time.split(':').map(Number);
+                const alarmTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes, 0);
+                
+                // 過去の時刻の場合はスキップ
+                if (alarmTime > now) {
+                    const timeToAlarm = alarmTime - now;
+                    
+                    const timeout = setTimeout(() => {
+                        playAlarmWithBeeps(beeps, time);
+                    }, timeToAlarm);
+                    
+                    alarmTimeouts.push(timeout);
+                }
+            });
+            
+            alert('段階アラームを設定しました：19:25〜21:00まで5分ごと');
+        }
+        
+        // 全てのアラームを停止
+        function cancelAllAlarms() {
+            alarmTimeouts.forEach(timeout => clearTimeout(timeout));
+            alarmTimeouts = [];
+            alert('全てのアラームを停止しました');
+        }
+        
+        // 指定回数のビープ音を再生
+        function playAlarmWithBeeps(beepCount, timeStr) {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            
+            let beepIndex = 0;
+            function playBeep() {
+                if (beepIndex >= beepCount) {
+                    return;
+                }
+                
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.value = 800; // 800Hzの音
+                gainNode.gain.value = 0.3;
+                
+                oscillator.start();
+                
+                setTimeout(() => {
+                    oscillator.stop();
+                    beepIndex++;
+                    
+                    if (beepIndex < beepCount) {
+                        setTimeout(playBeep, 300);
+                    }
+                }, 200);
+            }
+            
+            playBeep();
+            
+            // 通知も表示
+            if (Notification.permission === 'granted') {
+                new Notification(`アラーム ${timeStr}`, {
+                    body: `${beepCount}回のアラーム`,
+                    icon: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJDNi40NzcgMiAyIDYuNDc3IDIgMTJzNC40NzcgMTAgMTAgMTAgMTAtNC40NzcgMTAtMTBTMTcuNTIzIDIgMTIgMnoiIGZpbGw9IiNmZjY2MDAiLz4KPHBhdGggZD0iTTEyIDZjLTMuMzEzIDAtNiAyLjY4Ny02IDZzMi42ODcgNiA2IDYgNi0yLjY4NyA2LTYtMi42ODctNi02LTZ6IiBmaWxsPSIjZmZmIi8+Cjwvc3ZnPg=='
+                });
+            }
+            
+            alert(`⏰ ${timeStr} - ${beepCount}回のアラーム！`);
+        }
+
+        // アラーム音を再生
+        function playAlarm() {
+            // ビープ音を生成
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = 800; // 800Hzの音
+            gainNode.gain.value = 0.3;
+            
+            oscillator.start();
+            
+            // 3回ビープ音を鳴らす
+            setTimeout(() => {
+                oscillator.stop();
+                
+                // 2回目
+                setTimeout(() => {
+                    const osc2 = audioContext.createOscillator();
+                    const gain2 = audioContext.createGain();
+                    osc2.connect(gain2);
+                    gain2.connect(audioContext.destination);
+                    osc2.frequency.value = 800;
+                    gain2.gain.value = 0.3;
+                    osc2.start();
+                    setTimeout(() => {
+                        osc2.stop();
+                        
+                        // 3回目
+                        setTimeout(() => {
+                            const osc3 = audioContext.createOscillator();
+                            const gain3 = audioContext.createGain();
+                            osc3.connect(gain3);
+                            gain3.connect(audioContext.destination);
+                            osc3.frequency.value = 800;
+                            gain3.gain.value = 0.3;
+                            osc3.start();
+                            setTimeout(() => osc3.stop(), 200);
+                        }, 300);
+                    }, 200);
+                }, 300);
+            }, 200);
+            
+            // 通知も表示
+            if (Notification.permission === 'granted') {
+                new Notification('アラーム', {
+                    body: 'アラーム時刻になりました！',
+                    icon: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJDNi40NzcgMiAyIDYuNDc3IDIgMTJzNC40NzcgMTAgMTAgMTAgMTAtNC40NzcgMTAtMTBTMTcuNTIzIDIgMTIgMnoiIGZpbGw9IiNmZjY2MDAiLz4KPHBhdGggZD0iTTEyIDZjLTMuMzEzIDAtNiAyLjY4Ny02IDZzMi42ODcgNiA2IDYgNi0yLjY4NyA2LTYtMi42ODctNi02LTZ6IiBmaWxsPSIjZmZmIi8+Cjwvc3ZnPg=='
+                });
+            }
+            
+            alert('⏰ アラーム時刻になりました！');
+        }
+
+        // 初期化
+        function init() {
+            // 保存されたセッションを復元
+            const savedSession = loadCurrentSession();
+            if (savedSession) {
+                currentSession = savedSession;
+                
+                // UI更新
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('stopBtn').disabled = false;
+                document.getElementById('currentSession').style.display = 'block';
+                document.getElementById('manualEndTime').style.display = 'inline';
+                document.getElementById('stopWithTimeBtn').style.display = 'inline';
+                document.getElementById('verticalProgressContainer').style.display = 'flex';
+                
+                const start = new Date(currentSession.startTime);
+                document.getElementById('startTime').textContent = formatTime(start);
+                
+                // 終了推奨時刻
+                const recommendedEnd = new Date(start.getTime() + (4 * 60 + 55) * 60 * 1000);
+                document.getElementById('recommendedEnd').textContent = formatTime(recommendedEnd);
+                
+                // セッション終了時刻
+                const sessionEnd = new Date(start.getTime() + 5 * 60 * 60 * 1000);
+                document.getElementById('sessionEnd').textContent = formatTime(sessionEnd);
+                
+                // 経過時間の更新を開始
+                updateElapsedTime();
+                intervalId = setInterval(updateElapsedTime, 1000);
+            }
+            
+            updateHistory();
+            updateStats();
+            
+            // 通知の許可を要求
+            if (Notification.permission === 'default') {
+                Notification.requestPermission();
+            }
+        }
+        
+        init();
+    </script>
+</body>
+</html>
