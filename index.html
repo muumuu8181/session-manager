@@ -319,6 +319,7 @@
         <div class="history">
             <h3>セッション履歴</h3>
             <button onclick="exportToCSV()" style="background: #2196F3;">CSV出力</button>
+            <button onclick="importData()" style="background: #4CAF50;">データ移行</button>
             <div id="historyList"></div>
         </div>
     </div>
@@ -1083,6 +1084,47 @@
             }
         }
         
+        // データ移行機能
+        function importData() {
+            const instructions = `
+データ移行手順：
+
+1. ローカル版 claude-session-manager.html を開く
+2. F12キーで開発者ツールを開く
+3. Consoleタブをクリック
+4. 以下をコピペして実行：
+
+localStorage.getItem('claudeSessions')
+
+5. 出力された文字列をコピー（null以外）
+6. このボタンをもう一度押して貼り付け
+
+続けますか？`;
+            
+            if (!confirm(instructions)) return;
+            
+            const sessionsData = prompt('ローカル版で取得したsessionsデータを貼り付けてください:');
+            const currentSessionData = prompt('ローカル版で取得したcurrentSessionデータを貼り付けてください（なければキャンセル）:');
+            
+            if (sessionsData && sessionsData !== 'null') {
+                try {
+                    // データの妥当性チェック
+                    JSON.parse(sessionsData);
+                    localStorage.setItem('claudeSessions', sessionsData);
+                    
+                    if (currentSessionData && currentSessionData !== 'null') {
+                        JSON.parse(currentSessionData);
+                        localStorage.setItem('claudeCurrentSession', currentSessionData);
+                    }
+                    
+                    alert('データ移行が完了しました！ページをリロードします。');
+                    location.reload();
+                } catch (e) {
+                    alert('データの形式が正しくありません。もう一度お試しください。');
+                }
+            }
+        }
+
         init();
     </script>
 </body>
