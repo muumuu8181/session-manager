@@ -245,6 +245,35 @@
             color: #666;
             font-size: 9px;
         }
+        .debug-panel {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 11px;
+            max-height: 200px;
+            overflow-y: auto;
+            border-top: 2px solid #34495e;
+            z-index: 1000;
+        }
+        .debug-controls {
+            margin-bottom: 5px;
+        }
+        .debug-controls button {
+            margin-right: 5px;
+            padding: 3px 8px;
+            font-size: 10px;
+        }
+        .debug-log {
+            background: #34495e;
+            padding: 5px;
+            border-radius: 3px;
+            white-space: pre-wrap;
+        }
     </style>
 </head>
 <body>
@@ -308,6 +337,7 @@
             <button id="stopBtn" onclick="stopSession()" disabled>終了</button>
             <input type="time" id="manualEndTime" class="time-input" style="display: none;">
             <button id="stopWithTimeBtn" onclick="stopSessionWithTime()" style="display: none;">指定時刻で終了</button>
+            <button onclick="toggleDebugPanel()" style="background: #f39c12; font-size: 9px;">Debug</button>
         </div>
 
         <div class="time-input-container">
@@ -324,10 +354,72 @@
         </div>
     </div>
 
+    <!-- デバッグパネル -->
+    <div class="debug-panel" id="debugPanel" style="display: none;">
+        <div class="debug-controls">
+            <button onclick="showLocalStorageData()" style="background: #3498db;">LocalStorage表示</button>
+            <button onclick="checkDataMigration()" style="background: #e74c3c;">移行データ確認</button>
+            <button onclick="clearDebugLog()" style="background: #95a5a6;">ログクリア</button>
+            <button onclick="toggleDebugPanel()" style="background: #7f8c8d;">閉じる</button>
+        </div>
+        <div class="debug-log" id="debugLog">デバッグログ開始...</div>
+    </div>
+
     <script>
         let currentSession = null;
         let intervalId = null;
         let alarmTimeouts = [];
+
+        // デバッグ機能
+        function debugLog(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logElement = document.getElementById('debugLog');
+            logElement.textContent += `[${timestamp}] ${message}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+            console.log(`[DEBUG] ${message}`);
+        }
+
+        function toggleDebugPanel() {
+            const panel = document.getElementById('debugPanel');
+            if (panel.style.display === 'none') {
+                panel.style.display = 'block';
+                debugLog('デバッグパネルを開きました');
+            } else {
+                panel.style.display = 'none';
+            }
+        }
+
+        function showLocalStorageData() {
+            debugLog('=== LocalStorage データ確認 ===');
+            const sessions = localStorage.getItem('claudeSessions');
+            const currentSession = localStorage.getItem('claudeCurrentSession');
+            
+            debugLog(`claudeSessions: ${sessions ? JSON.stringify(JSON.parse(sessions), null, 2) : 'null'}`);
+            debugLog(`claudeCurrentSession: ${currentSession ? JSON.stringify(JSON.parse(currentSession), null, 2) : 'null'}`);
+            debugLog('=== 確認完了 ===');
+        }
+
+        function checkDataMigration() {
+            debugLog('=== データ移行状況確認 ===');
+            const sessions = loadSessions();
+            debugLog(`保存されているセッション数: ${sessions.length}`);
+            
+            if (sessions.length > 0) {
+                const latest = sessions[sessions.length - 1];
+                debugLog(`最新セッション: ${new Date(latest.startTime).toLocaleString()}`);
+            }
+            
+            if (currentSession) {
+                debugLog(`現在のセッション: 開始時刻 ${new Date(currentSession.startTime).toLocaleString()}`);
+            } else {
+                debugLog('現在のセッション: なし');
+            }
+            debugLog('=== 確認完了 ===');
+        }
+
+        function clearDebugLog() {
+            document.getElementById('debugLog').textContent = 'デバッグログクリアしました...\n';
+        }
 
         // ローカルストレージからデータを読み込む
         function loadSessions() {
@@ -1086,6 +1178,8 @@
         
         // データ移行機能
         function importData() {
+            debugLog('データ移行機能を開始');
+            
             const instructions = `
 データ移行手順：
 
@@ -1101,27 +1195,41 @@ localStorage.getItem('claudeSessions')
 
 続けますか？`;
             
-            if (!confirm(instructions)) return;
+            if (!confirm(instructions)) {
+                debugLog('データ移行をキャンセルしました');
+                return;
+            }
             
             const sessionsData = prompt('ローカル版で取得したsessionsデータを貼り付けてください:');
+            debugLog(`入力されたsessionsData: ${sessionsData ? sessionsData.substring(0, 100) + '...' : 'null'}`);
+            
             const currentSessionData = prompt('ローカル版で取得したcurrentSessionデータを貼り付けてください（なければキャンセル）:');
+            debugLog(`入力されたcurrentSessionData: ${currentSessionData ? currentSessionData.substring(0, 100) + '...' : 'null'}`);
             
             if (sessionsData && sessionsData !== 'null') {
                 try {
                     // データの妥当性チェック
-                    JSON.parse(sessionsData);
+                    const parsedSessions = JSON.parse(sessionsData);
+                    debugLog(`パースされたセッション数: ${parsedSessions.length}`);
+                    
                     localStorage.setItem('claudeSessions', sessionsData);
+                    debugLog('sessionsデータを保存しました');
                     
                     if (currentSessionData && currentSessionData !== 'null') {
-                        JSON.parse(currentSessionData);
+                        const parsedCurrentSession = JSON.parse(currentSessionData);
                         localStorage.setItem('claudeCurrentSession', currentSessionData);
+                        debugLog('currentSessionデータを保存しました');
                     }
                     
+                    debugLog('データ移行が完了しました。ページをリロードします。');
                     alert('データ移行が完了しました！ページをリロードします。');
                     location.reload();
                 } catch (e) {
+                    debugLog(`データ移行エラー: ${e.message}`);
                     alert('データの形式が正しくありません。もう一度お試しください。');
                 }
+            } else {
+                debugLog('有効なsessionsデータが入力されませんでした');
             }
         }
 
